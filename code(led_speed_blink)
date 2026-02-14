@@ -1,0 +1,111 @@
+/* USER CODE BEGIN Header */
+/**
+******************************************************************************
+* @file : main.c
+* @brief : LED toggle with button using HAL_Delay()
+******************************************************************************
+*/
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include <stdbool.h>
+/* Private variables ---------------------------------------------------------*/
+volatile uint8_t blinkMode = 0; // 0=LED off, 1=slow, 2=fast
+volatile bool buttonPressed = false; // flag for button press
+uint32_t blinkIntervals[] = {0, 500, 200}; // ms
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+/* USER CODE BEGIN 0 */
+/* EXTI callback for push button */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+if(GPIO_Pin == GPIO_PIN_13)
+{
+blinkMode++;
+if(blinkMode > 2) blinkMode = 0; // cycle through OFF, slow, fast
+}
+}
+/* USER CODE END 0 */
+int main(void)
+{
+HAL_Init();
+SystemClock_Config();
+MX_GPIO_Init();
+/* Enable EXTI interrupt for push button */
+HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
+HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+bool ledState = false;
+while (1)
+{
+if(blinkMode != 0) // LED should blink
+{
+ledState = !ledState;
+HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, ledState ? GPIO_PIN_SET : GPIO_PIN_RESET);
+HAL_Delay(blinkIntervals[blinkMode]);
+}
+else // LED off
+{
+HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+}
+}
+}
+/* GPIO init function */
+static void MX_GPIO_Init(void)
+{
+GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* GPIO Ports Clock Enable */
+__HAL_RCC_GPIOC_CLK_ENABLE();
+__HAL_RCC_GPIOA_CLK_ENABLE();
+/*Configure GPIO pin Output Level */
+HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+/*Configure GPIO pin : PC13 (Button) */
+GPIO_InitStruct.Pin = GPIO_PIN_13;
+GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+GPIO_InitStruct.Pull = GPIO_NOPULL;
+HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+/*Configure GPIO pin : PA5 (LED) */
+GPIO_InitStruct.Pin = GPIO_PIN_5;
+GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+GPIO_InitStruct.Pull = GPIO_NOPULL;
+GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+}
+/* EXTI handler */
+void EXTI15_10_IRQHandler(void)
+{
+HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+}
+/* System Clock Configuration */
+void SystemClock_Config(void)
+{
+RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+__HAL_RCC_PWR_CLK_ENABLE();
+__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+{
+Error_Handler();
+}
+RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+{
+Error_Handler();
+}
+}
+/* Error Handler */
+void Error_Handler(void)
+{
+__disable_irq();
+while(1) {}
+}
+
